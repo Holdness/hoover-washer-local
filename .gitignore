@@ -1,0 +1,11 @@
+# Keys, logs and pages the tools write - never commit these.
+washer_new_key.txt
+washer_key.txt
+phone-provision.html
+provision-*.txt
+probe-results-*.txt
+__pycache__/
+*.pyc
+# Don't commit the Hoover app or anything decompiled from it.
+*.apk
+apk_work/

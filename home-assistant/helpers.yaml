@@ -1,0 +1,104 @@
+# Helpers used by the scripts, automation and dashboard.
+# Create them in Settings > Devices & services > Helpers (same names and options),
+# or paste these blocks into configuration.yaml.
+#
+# The programme names map to the washer's programme numbers inside
+# scripts.yaml; if your dial differs, change both together.
+
+input_select:
+  washer_programme:
+    name: Washer programme
+    icon: mdi:washing-machine
+    options:
+      - Cottons
+      - ECO 40-60
+      - Wool & Soft Care
+      - 20°C
+      - Mixed
+      - Drain & Spin
+      - Rinse
+      - Active Steam
+      - Rapid 14 min
+      - All In One 59 min
+      - Extra Care
+      - Dry Wool
+      - Low Heat Dry
+      - High Heat Dry
+  washer_temperature:
+    name: Washer temperature
+    icon: mdi:thermometer-water
+    options: ["Default", "20", "30", "40", "60", "90"]
+  washer_spin:
+    name: Washer spin
+    icon: mdi:rotate-3d-variant
+    options: ["Default", "400", "600", "800", "1000", "1200", "1400", "1600"]
+  washer_soil_level:
+    name: Washer soil level
+    icon: mdi:tshirt-crew
+    options: ["Default", "Lightly soiled", "Normal", "Very dirty"]
+  washer_dry:
+    name: Washer dry
+    icon: mdi:tumble-dryer
+    options: ["None", "Extra dry", "Iron dry", "Cupboard dry", "Cool down", "120 min", "90 min", "60 min", "30 min"]
+
+input_number:
+  washer_delay:
+    name: Washer delay
+    icon: mdi:timer-sand
+    min: 0
+    max: 24
+    step: 1
+    unit_of_measurement: h
+    mode: slider
+
+  # The rest are only needed for the optional energy tracking (energy_automation.yaml).
+  washing_machine_cycle_start_kwh:
+    name: Washing machine cycle start kWh
+    min: 0
+    max: 1000000
+    step: 0.001
+    mode: box
+    unit_of_measurement: kWh
+  washing_machine_cycle_start_cost:
+    name: Washing machine cycle start cost
+    min: 0
+    max: 1000000
+    step: 0.0001
+    mode: box
+    unit_of_measurement: GBP
+  washing_machine_last_wash_energy:
+    name: Washing machine last wash energy
+    icon: mdi:lightning-bolt
+    min: 0
+    max: 50
+    step: 0.001
+    mode: box
+    unit_of_measurement: kWh
+  washing_machine_last_wash_cost:
+    name: Washing machine last wash cost
+    icon: mdi:currency-gbp
+    min: 0
+    max: 50
+    step: 0.01
+    mode: box
+    unit_of_measurement: GBP
+  washing_machine_last_wash_minutes:
+    name: Washing machine last wash minutes
+    icon: mdi:timer-outline
+    min: 0
+    max: 1000
+    step: 1
+    mode: box
+    unit_of_measurement: min
+
+# Energy tracking only:
+input_boolean:
+  washing_machine_cycle_active:
+    name: Washing machine cycle active
+    icon: mdi:washing-machine
+
+input_datetime:
+  washing_machine_cycle_start:
+    name: Washing machine cycle start
+    has_date: true
+    has_time: true

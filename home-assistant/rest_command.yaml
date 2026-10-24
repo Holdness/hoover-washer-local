@@ -1,0 +1,18 @@
+# Add to configuration.yaml (merge into an existing rest_command: block if you have one).
+#
+# Encrypts the command in a template (repeating XOR with the washer's 16-character
+# key, uppercase hex) and sends it to the washer's local API.
+#
+# Replace YOUR_16_CHAR_KEY with the key from provisioning, and WASHER_IP with the
+# washer's address on your network (a DHCP reservation for it is a good idea).
+rest_command:
+  hoover_washer_write:
+    url: >-
+      {%- set key = 'YOUR_16_CHAR_KEY' -%}
+      {%- set ns = namespace(out='') -%}
+      {%- for i in range(params | length) -%}
+      {%- set ns.out = ns.out ~ '%02X' % ((params[i] | ord) | bitwise_xor(key[i % 16] | ord)) -%}
+      {%- endfor -%}
+      http://WASHER_IP/http-write.json?encrypted=1&data={{ ns.out }}
+    method: GET
+    timeout: 30

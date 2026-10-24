@@ -1,0 +1,96 @@
+# OPTIONAL: per-wash energy, cost and a reliable "finished" notification.
+# Needs an energy-monitoring smart plug on the washer (we used an IKEA INSPELNING
+# on Zigbee) that provides:
+#   sensor.washing_machine_plug_power   (W)
+#   sensor.washing_machine_plug_energy  (cumulative kWh)
+# and a running cost sensor, sensor.washing_machine_cost (GBP): we made it with a
+# template "cost rate" sensor (power kW x your electricity price per kWh) feeding
+# an Integral (Riemann sum) helper. Without a cost sensor, drop the cost lines.
+#
+# Because it watches the plug rather than the washer's Wi-Fi, it still works when
+# the washer's Wi-Fi module locks up after a delayed start.
+# Thresholds were checked against a real wash: heating ~1.7 kW, washing ~60 W,
+# spin ~300 W, idle on the dial ~2-3 W, off ~0.5 W.
+#
+# Paste into automations.yaml (add an id:) or create it in the UI's YAML mode.
+
+- alias: Washing machine - track wash energy and notify when finished
+  description: 'Uses the Washing Machine Plug''s power (works even when the washer''s own Wi-Fi locks up after a delayed start). Start: power above 8 W while no cycle is active. End: power below 5 W for 8 minutes. Saves kWh, cost (priced by sensor.effective_house_rate via sensor.washing_machine_cost) and duration to the ''last wash'' helpers and notifies your phone. Runs shorter than 5 min using under 0.02 kWh (dial or display blips) are discarded.'
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.washing_machine_plug_power
+    above: 8
+    id: start
+  - trigger: numeric_state
+    entity_id: sensor.washing_machine_plug_power
+    below: 5
+    for:
+      minutes: 8
+    id: end
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: start
+      - condition: state
+        entity_id: input_boolean.washing_machine_cycle_active
+        state: 'off'
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.washing_machine_cycle_active
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.washing_machine_cycle_start
+        data:
+          timestamp: '{{ now().timestamp() }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.washing_machine_cycle_start_kwh
+        data:
+          value: '{{ states(''sensor.washing_machine_plug_energy'') | float(0) }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.washing_machine_cycle_start_cost
+        data:
+          value: '{{ states(''sensor.washing_machine_cost'') | float(0) }}'
+    - conditions:
+      - condition: trigger
+        id: end
+      - condition: state
+        entity_id: input_boolean.washing_machine_cycle_active
+        state: 'on'
+      sequence:
+      - variables:
+          kwh: '{{ [states(''sensor.washing_machine_plug_energy'') | float(0) - states(''input_number.washing_machine_cycle_start_kwh'') | float(0), 0] | max | round(3) }}'
+          cost: '{{ [states(''sensor.washing_machine_cost'') | float(0) - states(''input_number.washing_machine_cycle_start_cost'') | float(0), 0] | max | round(2) }}'
+          minutes: '{{ [((now().timestamp() - state_attr(''input_datetime.washing_machine_cycle_start'', ''timestamp'') | float(now().timestamp())) / 60 - 8) | round(0), 0] | max | int }}'
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.washing_machine_cycle_active
+      - if:
+        - condition: template
+          value_template: '{{ minutes >= 5 or kwh >= 0.02 }}'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.washing_machine_last_wash_energy
+          data:
+            value: '{{ kwh }}'
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.washing_machine_last_wash_cost
+          data:
+            value: '{{ cost }}'
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.washing_machine_last_wash_minutes
+          data:
+            value: '{{ minutes }}'
+        - action: notify.mobile_app_your_phone
+          data:
+            title: Washing machine
+            message: The washing has finished 🧺 {{ minutes // 60 }}h {{ '%02d' | format(minutes % 60) }}m, {{ '%.2f' | format(kwh) }} kWh, £{{ '%.2f' | format(cost) }}
+  mode: queued
+  max: 5

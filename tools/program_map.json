@@ -1,0 +1,96 @@
+{
+  "_note": "Hoover HBDOS695TAMCE-80 dial mapping. Key = the 'Pr' programme number reported by http-read. temp in C (0 = not selectable), spin = rpm/100, mins = the washer's time estimate at defaults. Names marked '?' are a best guess. Other models will differ: map yours with map_programs.py.",
+  "15": {
+    "name": "ONE Fi EXTRA / Auto-Hygiene?",
+    "temp": 90,
+    "spin": 4,
+    "mins": 131
+  },
+  "14": {
+    "name": "Cottons?",
+    "temp": 40,
+    "spin": 16,
+    "mins": 170
+  },
+  "13": {
+    "name": "ECO 40-60?",
+    "temp": 0,
+    "spin": 16,
+    "mins": 185
+  },
+  "12": {
+    "name": "Wool & Soft Care",
+    "temp": 30,
+    "spin": 8,
+    "mins": 49
+  },
+  "11": {
+    "name": "20C",
+    "temp": 20,
+    "spin": 12,
+    "mins": 126
+  },
+  "10": {
+    "name": "Mixed?",
+    "temp": 40,
+    "spin": 12,
+    "mins": 117
+  },
+  "9": {
+    "name": "Drain & Spin",
+    "temp": 0,
+    "spin": 12,
+    "mins": 10
+  },
+  "8": {
+    "name": "Rinse",
+    "temp": 0,
+    "spin": 12,
+    "mins": 29
+  },
+  "7": {
+    "name": "Active Steam",
+    "temp": 0,
+    "spin": 0,
+    "mins": 39,
+    "steam": 2
+  },
+  "6": {
+    "name": "Rapid 14/30/44",
+    "temp": 30,
+    "spin": 8,
+    "mins": 14
+  },
+  "5": {
+    "name": "All In One 59'",
+    "temp": 40,
+    "spin": 8,
+    "mins": 59
+  },
+  "4": {
+    "name": "Extra Care?",
+    "temp": 30,
+    "spin": 12,
+    "mins": 120
+  },
+  "3": {
+    "name": "Dry Wool?",
+    "temp": 0,
+    "spin": 0,
+    "mins": 120,
+    "dryT": 9
+  },
+  "2": {
+    "name": "Low Heat dry?",
+    "temp": 0,
+    "spin": 0,
+    "mins": 170,
+    "dryT": 1
+  },
+  "1": {
+    "name": "High Heat dry?",
+    "temp": 0,
+    "spin": 0,
+    "mins": 230
+  }
+}

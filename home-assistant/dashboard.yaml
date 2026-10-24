@@ -1,0 +1,139 @@
+# The /washer-control dashboard. Create a new dashboard, open the raw configuration
+# editor and paste this in. Drop the Energy section if you have no smart plug.
+# Rename sensor.bathroom_washing_machine* to match your Candy integration entities.
+
+views:
+- title: Washer
+  path: washer
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Status
+      icon: mdi:washing-machine
+    - type: tile
+      entity: sensor.bathroom_washing_machine
+      name: Machine
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: sensor.bathroom_washing_machine_wash_cycle_status
+      name: Cycle
+    - type: tile
+      entity: sensor.bathroom_washing_machine_wash_cycle_remaining_time
+      name: Remaining
+    - type: markdown
+      content: |-
+        **Programme {{ state_attr('sensor.bathroom_washing_machine','program') }}** · {{ state_attr('sensor.bathroom_washing_machine','temperature') }}°C · {{ state_attr('sensor.bathroom_washing_machine','spin_speed') }} rpm
+
+        {% if state_attr('sensor.bathroom_washing_machine','program') == 15 %}✅ Dial is on ONE Fi EXTRA — ready for remote start{% else %}⚠️ Turn the dial to **ONE Fi EXTRA** to start remotely{% endif %}
+      grid_options:
+        columns: 12
+  - type: grid
+    cards:
+    - type: heading
+      heading: Remote start
+      icon: mdi:remote
+    - type: tile
+      entity: input_select.washer_programme
+      name: Programme
+      features:
+      - type: select-options
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: input_select.washer_temperature
+      name: Temperature °C
+      features:
+      - type: select-options
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: input_select.washer_spin
+      name: Spin rpm
+      features:
+      - type: select-options
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: input_select.washer_soil_level
+      name: How dirty
+      features:
+      - type: select-options
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: input_select.washer_dry
+      name: Dry after wash
+      features:
+      - type: select-options
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: input_number.washer_delay
+      name: Delay start (0 = now)
+      features:
+      - type: numeric-input
+        style: buttons
+      grid_options:
+        columns: 12
+    - type: tile
+      entity: script.washer_start
+      name: Start
+      icon: mdi:play-circle
+      color: green
+      tap_action:
+        action: perform-action
+        perform_action: script.washer_start
+        confirmation:
+          text: Start the washer? Make sure it's loaded, door closed, dial on ONE Fi EXTRA.
+    - type: tile
+      entity: script.washer_stop
+      name: Stop
+      icon: mdi:stop-circle
+      color: red
+      tap_action:
+        action: perform-action
+        perform_action: script.washer_stop
+        confirmation:
+          text: Stop the washer?
+  - type: grid
+    cards:
+    - type: heading
+      heading: Energy
+      icon: mdi:lightning-bolt
+    - type: tile
+      entity: sensor.washing_machine_plug_power
+      name: Power now
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: sensor.washing_machine_energy_today
+      name: Energy today
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: sensor.washing_machine_cost_today
+      name: Cost today
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: sensor.washing_machine_cost_this_month
+      name: Cost this month
+      grid_options:
+        columns: 6
+    - type: markdown
+      grid_options:
+        columns: 12
+      content: '{% set m = states(''input_number.washing_machine_last_wash_minutes'') | int(0) %}{% if is_state(''input_boolean.washing_machine_cycle_active'', ''on'') %}**Washing now** · started {{ as_timestamp(states(''input_datetime.washing_machine_cycle_start'')) | timestamp_custom(''%H:%M'') }} · {{ (states(''sensor.washing_machine_plug_energy'') | float(0) - states(''input_number.washing_machine_cycle_start_kwh'') | float(0)) | round(2) }} kWh so far{% elif m > 0 %}**Last wash** · {{ m // 60 }}h {{ ''%02d'' | format(m % 60) }}m · {{ states(''input_number.washing_machine_last_wash_energy'') | float(0) | round(2) }} kWh · £{{ ''%.2f'' | format(states(''input_number.washing_machine_last_wash_cost'') | float(0)) }}{% else %}No wash measured yet. The first one will show here.{% endif %}'
+    - type: history-graph
+      title: Power, last 6 hours
+      hours_to_show: 6
+      grid_options:
+        columns: full
+        rows: 4
+      entities:
+      - entity: sensor.washing_machine_plug_power
+        name: Washer

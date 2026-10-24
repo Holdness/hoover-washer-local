@@ -1,0 +1,165 @@
+# Paste into scripts.yaml (or create each script in the UI and switch to YAML mode).
+#
+# sensor.bathroom_washing_machine is the main sensor from the Candy integration
+# (ofalvai/home-assistant-candy). Yours will be named after your own device:
+# find-and-replace it throughout.
+#
+# notify.mobile_app_your_phone: replace with your phone's notify action.
+
+washer_start:
+  alias: Washer start
+  description: 'Remote-starts the Hoover washer-dryer with the programme/temperature/spin chosen in the Washer helpers. Dial must be on ONE Fi EXTRA (programme 15). Retries because the washer''s Wi-Fi module handles one connection at a time. Optional delay (hours) from input_number.washer_delay (0 = start now). Drying (wash & dry) from input_select.washer_dry, sent as &Dry=<n> (axibianca encoding: 1 extra, 2 iron, 3 cupboard, 4 cool down, 5-8 = 120/90/60/30 min). Soil level from input_select.washer_soil_level, sent as &SLevTgt=<1|2|3> (1 lightly, 2 normal, 3 very dirty; at 90° 1 becomes 2, as in the app). Verified 8 Oct on Cottons: default=3 (170 min), 2=132 min, 1=20 min. Spin is only sent when LOWER than the programme default: 13 Oct a spin above the default (Mixed at 1400) left the washer beeping and offline until a power cycle.'
+  icon: mdi:play-circle
+  mode: single
+  sequence:
+  - alias: Dial must be on ONE Fi EXTRA and machine idle
+    if:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: sensor.bathroom_washing_machine
+        attribute: program
+        state: 15
+      - condition: state
+        entity_id: sensor.bathroom_washing_machine
+        state: Idle
+    then:
+    - action: notify.mobile_app_your_phone
+      data:
+        title: Washing machine
+        message: 'Can''t start: turn the dial to ONE Fi EXTRA (and make sure it''s idle) first.'
+    - stop: Washer not on ONE Fi EXTRA / not idle
+  - alias: Washer must be accepting remote commands
+    note: After standby (~5 min idle) or a power cycle the washer answers READ ONLY to writes and remote_control is false; turning the dial off and back to ONE Fi EXTRA re-enables it.
+    if:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: sensor.bathroom_washing_machine
+        attribute: remote_control
+        state: true
+    then:
+    - action: notify.mobile_app_your_phone
+      data:
+        title: Washing machine
+        message: 'Can''t start: the washer isn''t accepting remote commands (standby, or just switched on). Turn the dial off and back to ONE Fi EXTRA, then try again.'
+    - stop: Washer remote control not enabled
+  - variables:
+      params: |-
+        {%- set progs = {'Cottons':[14,40,16],'ECO 40-60':[13,0,16],'Wool & Soft Care':[12,30,8],'20°C':[11,20,12],'Mixed':[10,40,12],'Drain & Spin':[9,0,12],'Rinse':[8,0,12],'Active Steam':[7,0,0],'Rapid 14 min':[6,30,8],'All In One 59 min':[5,40,8],'Extra Care':[4,30,12],'Dry Wool':[3,0,0],'Low Heat Dry':[2,0,0],'High Heat Dry':[1,0,0]} -%}
+        {%- set p = progs[states('input_select.washer_programme')] -%}
+        {%- set t = states('input_select.washer_temperature') -%}
+        {%- set s = states('input_select.washer_spin') -%}
+        {%- set out = 'Write=1&Pa=0&Sel=0&PrNm=' ~ p[0] -%}
+        {%- set d = states('input_number.washer_delay') | int(0) -%}
+        {%- set out = out ~ ('&DelMd=1&DelVl=' ~ d if d > 0 else '&StSt=1') -%}
+        {%- if t != 'Default' and t | int != p[1] -%}{%- set out = out ~ '&TmpTgt=' ~ t ~ '&TmpDf=' ~ p[1] -%}{%- endif -%}
+        {%- if s != 'Default' and (s | int // 100) < p[2] -%}{%- set out = out ~ '&SpdTgt=' ~ (s | int // 100) ~ '&SpdDef=' ~ p[2] -%}{%- endif -%}
+        {%- set soil = {'Lightly soiled':1,'Normal':2,'Very dirty':3}.get(states('input_select.washer_soil_level'), 0) -%}
+        {%- set eff_t = (t | int(p[1])) if t != 'Default' else p[1] -%}
+        {%- set soil = 2 if (soil == 1 and eff_t == 90) else soil -%}
+        {%- if soil > 0 -%}{%- set out = out ~ '&SLevTgt=' ~ soil -%}{%- endif -%}
+        {%- set dry = {'None':0,'Extra dry':1,'Iron dry':2,'Cupboard dry':3,'Cool down':4,'120 min':5,'90 min':6,'60 min':7,'30 min':8}.get(states('input_select.washer_dry'), 0) -%}
+        {%- if dry > 0 -%}{%- set out = out ~ '&Stm=0&Dry=' ~ dry -%}{%- endif -%}
+        {{ out ~ '&OptMsk=0' }}
+      delay_h: '{{ states(''input_number.washer_delay'') | int(0) }}'
+      spin_text: |-
+        {%- set defs = {'Cottons':16,'ECO 40-60':16,'Wool & Soft Care':8,'20°C':12,'Mixed':12,'Drain & Spin':12,'Rinse':12,'Active Steam':0,'Rapid 14 min':8,'All In One 59 min':8,'Extra Care':12,'Dry Wool':0,'Low Heat Dry':0,'High Heat Dry':0} -%}
+        {%- set dflt = defs.get(states('input_select.washer_programme'), 0) -%}
+        {%- set s = states('input_select.washer_spin') -%}
+        {%- if s == 'Default' -%}Default
+        {%- elif (s | int // 100) > dflt -%}Default ({{ s }} is above this programme's {{ dflt * 100 }}, not sent)
+        {%- else -%}{{ s }}{%- endif -%}
+  - alias: Send start command (retry up to 8x, 10s apart; stop early if the washer already reacted)
+    repeat:
+      sequence:
+      - action: rest_command.hoover_washer_write
+        data:
+          params: '{{ params }}'
+        response_variable: resp
+        continue_on_error: true
+      - delay:
+          seconds: 10
+      until:
+      - condition: or
+        conditions:
+        - condition: template
+          value_template: '{{ resp is defined and resp.status == 200 }}'
+        - condition: state
+          entity_id: sensor.bathroom_washing_machine
+          state:
+          - Running
+          - Delayed start programmed
+        - condition: template
+          value_template: '{{ repeat.index >= 8 }}'
+  - alias: 'Confirm it started (wait_template on purpose: the state may already have changed during the retries)'
+    wait_template: '{{ states(''sensor.bathroom_washing_machine'') in [''Running'', ''Delayed start programmed''] }}'
+    timeout:
+      seconds: 90
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: notify.mobile_app_your_phone
+      data:
+        title: Washing machine
+        message: Command sent but the washer hasn't reported Running or Delayed start. Check the machine.
+    else:
+    - action: notify.mobile_app_your_phone
+      data:
+        title: Washing machine
+        message: '{{ ''Scheduled'' if delay_h | int > 0 else ''Started'' }}: {{ states(''input_select.washer_programme'') }}, temp {{ states(''input_select.washer_temperature'') }}, spin {{ spin_text }}, soil {{ states(''input_select.washer_soil_level'') }}, dry {{ states(''input_select.washer_dry'') }}{{ '', starts in '' ~ delay_h ~ '' h'' if delay_h | int > 0 else '''' }}.'
+    - alias: Reset temperature and spin to Default so old overrides never carry over
+      action: input_select.select_option
+      target:
+        entity_id:
+        - input_select.washer_temperature
+        - input_select.washer_spin
+      data:
+        option: Default
+    - alias: Reset delay to 0 so the next start is immediate unless chosen
+      action: input_number.set_value
+      target:
+        entity_id: input_number.washer_delay
+      data:
+        value: 0
+    - alias: Reset drying to None and soil level to Default
+      action: input_select.select_option
+      target:
+        entity_id: input_select.washer_dry
+      data:
+        option: None
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.washer_soil_level
+      data:
+        option: Default
+washer_stop:
+  alias: Washer stop
+  description: Stops the Hoover washer-dryer's current programme via the local API (retries up to 5x).
+  icon: mdi:stop-circle
+  mode: single
+  sequence:
+  - variables:
+      params: Write=1&StSt=0&DelMd=0&PrNm={{ state_attr('sensor.bathroom_washing_machine', 'program') | int(0) }}
+  - alias: Send stop command (retry up to 8x, 10s apart; stop early once the washer is idle)
+    repeat:
+      sequence:
+      - action: rest_command.hoover_washer_write
+        data:
+          params: '{{ params }}'
+        response_variable: resp
+        continue_on_error: true
+      - delay:
+          seconds: 10
+      until:
+      - condition: or
+        conditions:
+        - condition: template
+          value_template: '{{ resp is defined and resp.status == 200 }}'
+        - condition: state
+          entity_id: sensor.bathroom_washing_machine
+          state: Idle
+        - condition: template
+          value_template: '{{ repeat.index >= 8 }}'
